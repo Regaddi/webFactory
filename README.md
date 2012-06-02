@@ -11,6 +11,8 @@ features:
   - fast prototyping of models through short keycodes
 
 
+LICENSE
+=======
 The MIT License (MIT)
 Copyright (c) 2012 Christian Brandt
 
