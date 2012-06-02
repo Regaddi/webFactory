@@ -24,15 +24,27 @@ def getVariable():
 		var['datatype'] = "DATETIME"
 	elif datatype == "d":
 		print("length:")
-		decLength = int(input())
+		try:
+			decLength = int(input())
+		except:
+			print("unexpected input. canceled.")
+			return var
 		print("decimal places:")
-		decPlaces = int(input())
+		try:
+			decPlaces = int(input())
+		except:
+			print("unexpected input. canceled.")
+			return var
 		var['datatype'] = "DECIMAL("+str(decLength)+","+str(decPlaces)+")"
 	elif datatype == "i":
 		var['datatype'] = "INT(11)"
 	elif datatype == "s":
 		print("length:")
-		strLength = int(input())
+		try:
+			strLength = int(input())
+		except:
+			print("unexpected input. canceled.")
+			return var
 		var['datatype'] = "VARCHAR("+str(strLength)+")"
 	elif datatype == "x":
 		var['datatype'] = "TEXT"
@@ -58,7 +70,8 @@ def getVariable():
 			bel = input().lower()[0]
 			if bel == "y":
 				var['belongsto'] = True
-
+	else:
+		var = {}
 	return var
 
 def createClass():
