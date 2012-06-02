@@ -40,7 +40,7 @@ def getVariable():
 		print("insert datatype manually:")
 		oType = input()
 		for c in classes:
-			if c['name'] == oType:
+			if c['name'].lower() == oType.lower():
 				print("do you mean this class? (y/n)")
 				printClass(classes.index(c))
 				ret = input().lower()[0]
