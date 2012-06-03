@@ -23,14 +23,10 @@ def getVariable():
 	elif datatype == "t":
 		var['datatype'] = "DATETIME"
 	elif datatype == "d":
-		print("length:")
 		try:
+			print("length:")
 			decLength = int(input())
-		except:
-			print("unexpected input. canceled.")
-			return var
-		print("decimal places:")
-		try:
+			print("decimal places:")
 			decPlaces = int(input())
 		except:
 			print("unexpected input. canceled.")
