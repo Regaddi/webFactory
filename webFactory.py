@@ -233,6 +233,17 @@ def producePHPCode(c):
 			lines.append("\t\treturn "+v['class']+"::find($this->"+v['name']+");\n")
 			lines.append("\t}\n")
 
+			# get by parent or parent id
+			funcName = "find_by_"+v['name'].lower()
+			parent = v['name'].lower()
+			lines.append("\n\tpublic function "+funcName+"($"+parent+") {\n")
+			lines.append("\t\tif(is_int($"+parent+") || is_numeric($"+parent+")) {\n")
+			lines.append("\t\t\treturn "+v['class']+"::find('"+v['name']+"='.$"+parent+");\n")
+			lines.append("\t\t} elseif(getClass($"+parent+") == '"+v['name']+"') {\n")
+			liens.append("\t\t\treturn "+v['class']+"::find('"+v['name']+"='.$"+parent+"->id);\n")
+			lines.append("\t\t}\n")
+			lines.append("\t}\n")
+
 	# save()
 	lines.append("\n\tpublic function save() {\n")
 	lines.append("\t\t$db = new DB();\n")
