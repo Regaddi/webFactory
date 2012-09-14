@@ -359,7 +359,7 @@ def producePHPCode(c):
 							break
 			lines.append("\t\t\t\t\t($single ? array() : "+v['class']+"::find_by_"+foreignkey+"($r['id']))")
 		elif 'belongsto' in v and v['belongsto'] == True:
-			lines.append("\t\t\t\t\t$r['"+v['name'].lower()+"_id']")
+			lines.append("\t\t\t\t\t"+v['class']+"::find($r['"+v['name'].lower()+"_id'], TRUE)")
 		else:
 			lines.append("\t\t\t\t\t$r['"+v['name'].lower()+"']")
 		if c['vars'].index(v) < len(c['vars'])-1:
