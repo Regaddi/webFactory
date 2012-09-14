@@ -214,7 +214,7 @@ def producePHPCode(c):
 	lines.append(") {\n")
 	for v in c['vars']:
 		if 'belongsto' in v and v['belongsto'] == True:
-			lines.append("\t\t$this->"+v['name']+" = (int)$"+v['name']+";\n")
+			lines.append("\t\t$this->"+v['name']+" = get_class($"+v['name']+") == '"+v['class']+"' ? $"+v['name']+" : "+v['class']+"::find($"+v['name']+", TRUE);\n")
 		else:
 			lines.append("\t\t$this->"+v['name']+" = $"+v['name']+";\n")
 	lines.append("\t}\n")
@@ -238,9 +238,9 @@ def producePHPCode(c):
 			parent = v['name'].lower()
 			lines.append("\n\tpublic function "+funcName+"($"+parent+") {\n")
 			lines.append("\t\tif(is_int($"+parent+") || is_numeric($"+parent+")) {\n")
-			lines.append("\t\t\treturn "+v['class']+"::find('"+v['name']+"='.$"+parent+");\n")
-			lines.append("\t\t} elseif(getClass($"+parent+") == '"+v['name']+"') {\n")
-			liens.append("\t\t\treturn "+v['class']+"::find('"+v['name']+"='.$"+parent+"->id);\n")
+			lines.append("\t\t\treturn "+c['name']+"::find('"+v['name']+"_id='.$"+parent+");\n")
+			lines.append("\t\t} elseif(get_class($"+parent+") == '"+v['class']+"') {\n")
+			lines.append("\t\t\treturn "+c['name']+"::find('"+v['name']+"_id='.$"+parent+"->id);\n")
 			lines.append("\t\t}\n")
 			lines.append("\t}\n")
 
@@ -275,7 +275,7 @@ def producePHPCode(c):
 		elif 'belongsto' in v and v['belongsto'] == True:
 			lines.append(v['name'].lower()+"_id")
 			vals.append("?")
-			params.append("$this->"+v['name'])
+			params.append("$this->"+v['name']+"->id")
 		elif v['name'] != "id":
 			lines.append(v['name'].lower())
 			vals.append("?")
@@ -296,7 +296,7 @@ def producePHPCode(c):
 				if c2['name'] == v['datatype'][:-2]:
 					for v2 in c2['vars']:
 						if v2['datatype'] == c['name']:
-							lines.append("\t\t\t\t$"+v['name']+"_row->"+v2['name']+" = $this->id;\n")
+							lines.append("\t\t\t\t$"+v['name']+"_row->"+v2['name']+" = "+v2['class']+"::find($this->id, TRUE);\n")
 							break;
 			lines.append("\t\t\t\t$"+v['name']+"_row->save();\n")
 			lines.append("\t\t\t}\n")
@@ -341,7 +341,7 @@ def producePHPCode(c):
 	lines.append("\t}\n")
 
 	# find()
-	lines.append("\n\tpublic static function find($searchTerm) {\n")
+	lines.append("\n\tpublic static function find($searchTerm, $single = FALSE) {\n")
 	lines.append("\t\t$db = new DB();\n")
 	lines.append("\t\tif(is_numeric($searchTerm)) {\n")
 	lines.append("\t\t\t$r = $db->preparedStatement(\"SELECT * FROM `"+c['name'].lower()+"` WHERE id = ?\", $searchTerm);\n")
@@ -355,9 +355,9 @@ def producePHPCode(c):
 				if 'class' in v and c2['name'] == v['class']:
 					for v2 in c2['vars']:
 						if 'class' in v2 and v2['class'] == c['name']:
-							foreignkey = v2['name']+"_id"
+							foreignkey = v2['name']
 							break
-			lines.append("\t\t\t\t\t"+v['class']+"::find('"+foreignkey+"='.$r['id'])")
+			lines.append("\t\t\t\t\t($single ? array() : "+v['class']+"::find_by_"+foreignkey+"($r['id']))")
 		elif 'belongsto' in v and v['belongsto'] == True:
 			lines.append("\t\t\t\t\t$r['"+v['name'].lower()+"_id']")
 		else:
