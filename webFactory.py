@@ -2,7 +2,7 @@
 
 import json, os, sys
 
-version = 1.0
+version = 1.2
 classes = []
 
 
@@ -156,7 +156,7 @@ def produceMySQLScheme():
 	lines.append("USE `"+scheme+"`;\n")
 
 	for c in classes:
-		lines.append("\nCREATE TABLE IF NOT EXISTS `"+c['name'].lower()+"` (\n")
+		lines.append("\nCREATE TABLE IF NOT EXISTS `"+c['name'].lower()+"s` (\n")
 		constraints = []
 		isPrimary = False
 		primary = None
@@ -169,7 +169,7 @@ def produceMySQLScheme():
 			else:
 				if 'belongsto' in v and v['belongsto'] == True:
 					lines.append("\t`"+v['name'].lower()+"_id` INT(11)")
-					constraints.append("CONSTRAINT `fk_"+c['name'].lower()+"_"+v['name'].lower()+"` FOREIGN KEY (`"+v['name'].lower()+"_id`) REFERENCES `"+v['datatype'].lower()+"` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,\n")
+					constraints.append("CONSTRAINT `fk_"+c['name'].lower()+"_"+v['name'].lower()+"` FOREIGN KEY (`"+v['name'].lower()+"_id`) REFERENCES `"+v['datatype'].lower()+"s` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,\n")
 				if 'hasmany' in v and v['hasmany'] == True:
 					continue
 			if isPrimary == True:
@@ -196,37 +196,42 @@ def producePHPCode(c):
 	lines = []
 	lines.append("<?php\n\n/** generated with webFactory "+str(version)+" */\n\n")
 	# begin
-	lines.append("class "+c['name']+" {\n")
+	lines.append("class "+c['name']+" extends ActiveRecordModel {\n")
 
 	# vars
 	for v in c['vars']:
-		lines.append("\tpublic $"+v['name']+";\n")
-
-	# __construct
-	lines.append("\n\tpublic function __construct(")
-	i = 0
-	for v in c['vars']:
-		lines.append("$"+v['name'])
-		if i < len(c['vars'])-1:
-			lines.append(",")
-			
-		i = i+1
-	lines.append(") {\n")
-	for v in c['vars']:
-		if 'belongsto' in v and v['belongsto'] == True:
-			lines.append("\t\t$this->"+v['name']+" = get_class($"+v['name']+") == '"+v['class']+"' ? $"+v['name']+" : "+v['class']+"::find($"+v['name']+", TRUE);\n")
+		if v['name'] == "id":
+			lines.append("\tpublic $id = 0;\n")
 		else:
-			lines.append("\t\t$this->"+v['name']+" = $"+v['name']+";\n")
+			lines.append("\tpublic $"+v['name']+";\n")
+
+	# getTableName
+	lines.append("\n\tpublic static function getTableName() {\n")
+	lines.append("\t\treturn '"+c['name'].lower()+"s';\n")
 	lines.append("\t}\n")
 
 	for v in c['vars']:
 		if 'hasmany' in v and v['hasmany'] == True:
+			# has_many_class
+			lines.append("\n\tprotected $has_many_"+v['class'].lower()+"s = TRUE;\n");
+			# has_many_var
+			lines.append("\n\tprotected static $has_many_"+v['class'].lower()+"_var = '"+v['name']+"';\n");
+			# class_var
+			lines.append("\n\tprotected $"+v['name']+"_class = '"+v['class']+"';\n");
+
 			# get child by index
 			funcName = "get"+v['name'][0].upper()+v['name'][1:-1]+"ByIndex"
 			lines.append("\n\tpublic function "+funcName+"($index) {\n")
 			lines.append("\t\treturn $this->"+v['name']+"[$index];\n")
 			lines.append("\t}\n")
 		if 'belongsto' in v and v['belongsto'] == True:
+			# belongs_to_class
+			lines.append("\n\tprotected $belongs_to_"+v['class'].lower()+" = TRUE;\n");
+			# belongs_to_var
+			lines.append("\n\tprotected static $belongs_to_"+v['class'].lower()+"_var = '"+v['name']+"';\n");
+			# class_var
+			lines.append("\n\tprotected $"+v['name']+"_class = '"+v['class']+"';\n");
+
 			# get parent
 			funcName = "get"+v['name'][0].upper()+v['name'][1:]
 			lines.append("\n\tpublic function "+funcName+"() {\n")
@@ -244,127 +249,28 @@ def producePHPCode(c):
 			lines.append("\t\t}\n")
 			lines.append("\t}\n")
 
-	# save()
-	lines.append("\n\tpublic function save() {\n")
-	lines.append("\t\t$db = new DB();\n")
-	lines.append("\t\tif($this->id > 0) {\n")
-	lines.append("\t\t\t$db->preparedStatement(\"UPDATE `"+c['name'].lower()+"` SET ")
-	params = []
-	for v in c['vars']:
-		if 'hasmany' in v and v['hasmany'] == True:
-				continue
-		elif 'belongsto' in v and v['belongsto'] == True:
-			lines.append(v['name'].lower()+"_id = ?")
-			params.append("$this->"+v['name'])
-		elif v['name'] != "id":
-			lines.append(v['name'].lower()+" = ?")
-			params.append("$this->"+v['name'])
-		else:
-			continue
-		lines.append(", ")
-	lines.append("updated_at = NOW() WHERE id = ?\"")
-	params.append("$this->id")
-	lines.append(", "+(', '.join(params))+");\n")
-	lines.append("\t\t} else {\n")
-	lines.append("\t\t\t$db->preparedStatement(\"INSERT INTO `"+c['name'].lower()+"` (")
-	params = []
-	vals = []
-	for v in c['vars']:
-		if 'hasmany' in v and v['hasmany'] == True:
-				continue
-		elif 'belongsto' in v and v['belongsto'] == True:
-			lines.append(v['name'].lower()+"_id")
-			vals.append("?")
-			params.append("$this->"+v['name']+"->id")
-		elif v['name'] != "id":
-			lines.append(v['name'].lower())
-			vals.append("?")
-			params.append("$this->"+v['name'])
-		else:
-			continue
-		lines.append(", ")
-	lines.append("created_at")
-	vals.append("NOW()")
-	lines.append(") VALUES ("+(', '.join(vals))+");\", "+(', '.join(params))+");\n")
-	lines.append("\t\t\t$this->id = $db->lastInsertId('"+c['name'].lower()+"');\n")
-	lines.append("\t\t}\n")
-	for v in c['vars']:
-		if 'hasmany' in v and v['hasmany'] == True:
-			lines.append("\t\tif(count($this->"+v['name']+") > 0) {\n")
-			lines.append("\t\t\tforeach($this->"+v['name']+" as $"+v['name']+"_row) {\n")
-			for c2 in classes:
-				if c2['name'] == v['datatype'][:-2]:
-					for v2 in c2['vars']:
-						if v2['datatype'] == c['name']:
-							lines.append("\t\t\t\t$"+v['name']+"_row->"+v2['name']+" = "+v2['class']+"::find($this->id, TRUE);\n")
-							break;
-			lines.append("\t\t\t\t$"+v['name']+"_row->save();\n")
-			lines.append("\t\t\t}\n")
-			lines.append("\t\t}\n")
-	lines.append("\t}\n")
-
-	# delete()
-	lines.append("\n\tpublic function delete() {\n")
-	lines.append("\t\t$db = new DB();\n")
-	lines.append("\t\t$db->preparedStatement(\"DELETE FROM `"+c['name'].lower()+"` WHERE id = ?\", $this->id);\n")
-	lines.append("\t}\n")
 
 	# static functions
 	# all()
 	lines.append("\n\tpublic static function all() {\n")
 	lines.append("\t\t$result = array();\n")
 	lines.append("\t\t$db = new DB();\n")
-	lines.append("\t\t$rows = $db->preparedStatement(\"SELECT * FROM `"+c['name'].lower()+"`\");\n")
+	lines.append("\t\t$rows = $db->preparedStatement(\"SELECT * FROM `\".self::getTableName().\"`\");\n")
 	lines.append("\t\tforeach($rows as $r) {\n")
-	lines.append("\t\t\tarray_push($result, new "+c['name']+"(\n")
-	for v in c['vars']:
-		if 'hasmany' in v:
-			if v['hasmany']:
-				foreignkey = ""
-				for c2 in classes:
-					if 'class' in v and c2['name'] == v['class']:
-						for v2 in c2['vars']:
-							if 'class' in v2 and v2['class'] == c['name']:
-								foreignkey = v2['name']+"_id"
-								break
-				lines.append("\t\t\t\t\t"+v['class']+"::find('"+foreignkey+"='.$r['id'])")
-			else:
-				lines.append("\t\t\t\t\tnew "+v['class']+"("+v['class']+"::find($r['"+v['name'].lower()+"_id']))")
-		else:
-			lines.append("\t\t\t\t\t$r['"+v['name'].lower()+"']")
-		if c['vars'].index(v) < len(c['vars'])-1:
-			lines.append(",\n")
-	lines.append("));\n")
+	lines.append("\t\t\tarray_push($result, new "+c['name']+"($r));\n")
 	lines.append("\t\t}\n")
 	lines.append("\t\t$db->close();\n")
 	lines.append("\t\treturn $result;\n")
 	lines.append("\t}\n")
 
 	# find()
-	lines.append("\n\tpublic static function find($searchTerm, $single = FALSE) {\n")
+	lines.append("\n\tpublic static function find($searchTerm) {\n")
 	lines.append("\t\t$db = new DB();\n")
 	lines.append("\t\tif(is_numeric($searchTerm)) {\n")
-	lines.append("\t\t\t$r = $db->preparedStatement(\"SELECT * FROM `"+c['name'].lower()+"` WHERE id = ?\", $searchTerm);\n")
+	lines.append("\t\t\t$r = $db->preparedStatement(\"SELECT * FROM `\".self::getTableName().\"` WHERE id = ?\", $searchTerm);\n")
 	lines.append("\t\t\tif(count($r) == 1) {\n")
 	lines.append("\t\t\t\t$r = $r[0];\n")
-	lines.append("\t\t\t\treturn new "+c['name']+"(\n")
-	for v in c['vars']:
-		if 'hasmany' in v and v['hasmany'] == True:
-			foreignkey = ""
-			for c2 in classes:
-				if 'class' in v and c2['name'] == v['class']:
-					for v2 in c2['vars']:
-						if 'class' in v2 and v2['class'] == c['name']:
-							foreignkey = v2['name']
-							break
-			lines.append("\t\t\t\t\t($single ? array() : "+v['class']+"::find_by_"+foreignkey+"($r['id']))")
-		elif 'belongsto' in v and v['belongsto'] == True:
-			lines.append("\t\t\t\t\t"+v['class']+"::find($r['"+v['name'].lower()+"_id'], TRUE)")
-		else:
-			lines.append("\t\t\t\t\t$r['"+v['name'].lower()+"']")
-		if c['vars'].index(v) < len(c['vars'])-1:
-			lines.append(",\n")
-	lines.append(");\n")
+	lines.append("\t\t\t\treturn new "+c['name']+"($r);\n")
 	lines.append("\t\t\t} else {\n")
 	lines.append("\t\t\t\treturn NULL;\n")
 	lines.append("\t\t\t}\n")
@@ -384,7 +290,7 @@ def producePHPCode(c):
 	lines.append("\t\t\t\t}\n")
 	lines.append("\t\t\t}\n")
 	lines.append("\t\t\t$customdb = $db->custom();\n")
-	lines.append("\t\t\t$pstmt = $customdb->prepare(\"SELECT id FROM `"+c['name'].lower()+"` WHERE \".implode(\" AND \", $where));\n")
+	lines.append("\t\t\t$pstmt = $customdb->prepare(\"SELECT id FROM `\".self::getTableName().\"` WHERE \".implode(\" AND \", $where));\n")
 	lines.append("\t\t\t$i = 1;\n")
 	lines.append("\t\t\tforeach($query as $key => $val) {\n")
 	lines.append("\t\t\t\t$pstmt->bindValue($i++, $val, ((is_int($val) || ctype_digit($val)) ? PDO::PARAM_INT : PDO::PARAM_STR));\n")
@@ -398,6 +304,142 @@ def producePHPCode(c):
 	lines.append("\t\t}\n")
 	lines.append("\t}\n")
 
+	lines.append("}\n")
+	lines.append("?>\n")
+	return ''.join(lines)
+
+def produceActiveRecordModelClass():
+	lines = []
+	lines.append("<?php\n\n/** generated with webFactory "+str(version)+" */\n\n")
+	lines.append("class ActiveRecordModel {\n")
+
+	# __construct
+	lines.append("\npublic function __construct($vars) {\n")
+	lines.append("\t\tif(is_array($vars) && count($vars) > 0) {\n")
+	lines.append("\t\t\tforeach($vars as $prop => $val) {\n")
+	lines.append("\t\t\t\t$prop = substr($prop, -3) == \"_id\" ? substr($prop, 0, -3) : $prop;\n")
+	lines.append("\t\t\t\tif(property_exists($this, $prop)) {\n")
+	lines.append("\t\t\t\t\t$prop_class = $prop.'_class';\n")
+	lines.append("\t\t\t\t\tif(property_exists($this, $prop.'_class')) {\n")
+	lines.append("\t\t\t\t\t\t$classname = $this->$prop_class;\n")
+	lines.append("\t\t\t\t\t\tif(property_exists($this, 'has_many_'.strtolower($this->$prop_class))) {\n")
+	lines.append("\t\t\t\t\t\t\t$this->$prop = $classname::find_by_parent($this);\n")
+	lines.append("\t\t\t\t\t\t} elseif(property_exists($this, 'belongs_to_'.strtolower($this->$prop_class))) {\n")
+	lines.append("\t\t\t\t\t\t\t$this->$prop = (int)$val;\n")
+	lines.append("\t\t\t\t\t\t}\n")
+	lines.append("\t\t\t\t\t} else $this->$prop = $val;\n")
+	lines.append("\t\t\t\t}\n")
+	lines.append("\t\t\t}\n")
+	lines.append("\t\t\tforeach(get_object_vars($this) as $prop => $val) {\n")
+	lines.append("\t\t\t\tif(strstr($prop, 'has_many_') && is_bool($this->$prop)) {\n")
+	lines.append("\t\t\t\t\t$class_var = substr($prop, 9).'_class';\n")
+	lines.append("\t\t\t\t\t$class = $this->$class_var;\n")
+	lines.append("\t\t\t\t\t$has_many_var = 'has_many_'.strtolower($class).'_var';\n")
+	lines.append("\t\t\t\t\t$prop_var = static::$$has_many_var;\n")
+	lines.append("\t\t\t\t\t$this->$prop_var = $class::find_by_parent($this);\n")
+	lines.append("\t\t\t\t}\n")
+	lines.append("\t\t\t}\n")
+	lines.append("\t\t}\n")
+	lines.append("\t}\n")
+	
+	# find_by_parent
+	lines.append("\n\tpublic static function find_by_parent($obj) {\n")
+	lines.append("\t\t$var = 'belongs_to_'.strtolower(get_class($obj)).'_var';\n")
+	lines.append("\t\tif(static::$$var) {\n")
+	lines.append("\t\t\t$bvar = 'belongs_to_'.strtolower(get_class($obj)).'_var';\n")
+	lines.append("\t\t\treturn static::find(static::$$bvar.'_id='.$obj->id);\n")
+	lines.append("\t\t}\n")
+	lines.append("\t\treturn NULL;\n")
+	lines.append("\t}")
+
+	# singleize
+	lines.append("\tpublic function singleize() {\n")
+	lines.append("\t\tforeach(get_object_vars($this) as $prop => $val) {\n")
+	lines.append("\t\t\tif(substr($prop, 0, 9) == 'has_many_') {\n")
+	lines.append("\t\t\t\t$this->$prop = array();\n")
+	lines.append("\t\t\t}\n")
+	lines.append("\t\t}\n");
+	lines.append("\t}\n\n")
+
+	# save
+	lines.append("\tpublic function save() {\n")
+	lines.append("\t\tif(property_exists($this, 'id')) {\n")
+	lines.append("\t\t\t$db = new DB();\n")
+	lines.append("\t\t\tif($this->id > 0) {\n")
+	lines.append("\t\t\t\t$dbc = $db->custom();\n")
+	lines.append("\t\t\t\t$fields = array();\n")
+	lines.append("\t\t\t\tforeach(get_object_vars($this) as $prop => $val) {\n")
+	lines.append("\t\t\t\t\tif($prop != \"id\") {\n")
+	lines.append("\t\t\t\t\t\tif(property_exists($this, $prop.'_class')) {\n")
+	lines.append("\t\t\t\t\t\t\t$prop_class = $prop.'_class';\n")
+	lines.append("\t\t\t\t\t\t\t$check_has_many = 'has_many_'.strtolower($this->$prop_class).'s';\n")
+	lines.append("\t\t\t\t\t\t\tif(property_exists($this, $check_has_many) && $this->$check_has_many) continue;\n")
+	lines.append("\t\t\t\t\t\t}\n")
+	lines.append("\t\t\t\t\t\tarray_push($fields, $prop.\" = :\".$prop);\n")
+	lines.append("\t\t\t\t\t}\n")
+	lines.append("\t\t\t\t}\n")
+	lines.append("\t\t\t\t$stmt = \"UPDATE `\".static::getTableName().\"` SET \".implode(\", \", $fields).\", updated_at = NOW() WHERE id = :id\";\n")
+	lines.append("\t\t\t\t$sth = $dbc->prepare($stmt);\n")
+	lines.append("\t\t\t\tforeach(get_object_vars($this) as $prop => $val) {\n")
+	lines.append("\t\t\t\t\tif($prop != \"id\") $sth->bindValue(\":\".$prop, $val, is_int($val) ? PDO::PARAM_INT : PDO::PARAM_STR);\n")
+	lines.append("\t\t\t\t}\n")
+	lines.append("\t\t\t\t$sth->bindValue(':id', $this->id);\n")
+	lines.append("\t\t\t\t$sth->execute();\n")
+	lines.append("\t\t\t} else {\n")
+	lines.append("\t\t\t\t$dbc = $db->custom();\n")
+	lines.append("\t\t\t\t$cols = array();\n")
+	lines.append("\t\t\t\t$vals = array();\n")
+	lines.append("\t\t\t\tforeach(get_object_vars($this) as $prop => $val) {\n")
+	lines.append("\t\t\t\t\tif($prop != \"id\") {\n")
+	lines.append("\t\t\t\t\t\tif(property_exists($this, $prop.'_class')) {\n")
+	lines.append("\t\t\t\t\t\t\t$prop_class = $prop.'_class';\n")
+	lines.append("\t\t\t\t\t\t\t$check_has_many = 'has_many_'.strtolower($this->$prop_class).'s';\n")
+	lines.append("\t\t\t\t\t\t\tif(property_exists($this, $check_has_many) && $this->$check_has_many) continue;\n")
+	lines.append("\t\t\t\t\t\t\t$check_belongs_to = 'belongs_to_'.strtolower($this->$prop_class);\n")
+	lines.append("\t\t\t\t\t\t\tif(property_exists($this, $check_belongs_to) && $this->$check_belongs_to) {\n")
+	lines.append("\t\t\t\t\t\t\t\tarray_push($cols, $prop.\"_id\");\n")
+	lines.append("\t\t\t\t\t\t\t\tarray_push($vals, \":\".$prop);\n")
+	lines.append("\t\t\t\t\t\t\t}\n")
+	lines.append("\t\t\t\t\t\t} else {\n")
+	lines.append("\t\t\t\t\t\t\tif(!strstr($prop, \"has_many_\") && !strstr($prop, \"_class\") && !strstr($prop, \"belongs_to_\")) {\n")
+	lines.append("\t\t\t\t\t\t\t\tarray_push($cols, $prop);\n")
+	lines.append("\t\t\t\t\t\t\t\tarray_push($vals, \":\".$prop);\n")
+	lines.append("\t\t\t\t\t\t\t}\n")
+	lines.append("\t\t\t\t\t\t}\n")
+	lines.append("\t\t\t\t\t}\n")
+	lines.append("\t\t\t\t}\n")
+	lines.append("\t\t\t\t$stmt = \"INSERT INTO `\".static::getTableName().\"` (\".implode(\", \", $cols).\", created_at) VALUES (\".implode(\", \", $vals).\", NOW())\";\n")
+	lines.append("\t\t\t\t$sth = $dbc->prepare($stmt);\n")
+	lines.append("\t\t\t\tforeach(get_object_vars($this) as $prop => $val) {\n")
+	lines.append("\t\t\t\t\tif($prop != 'id') {\n")
+	lines.append("\t\t\t\t\t\tif(property_exists($this, $prop.'_class')) {\n")
+	lines.append("\t\t\t\t\t\t\t$prop_class = $prop.'_class';\n")
+	lines.append("\t\t\t\t\t\t\t$check_has_many = 'has_many_'.strtolower($this->$prop_class).'s';\n")
+	lines.append("\t\t\t\t\t\t\tif(property_exists($this, $check_has_many) && $this->$check_has_many) continue;\n")
+	lines.append("\t\t\t\t\t\t\t$check_belongs_to = 'belongs_to_'.strtolower($this->$prop_class);\n")
+	lines.append("\t\t\t\t\t\t\tif(property_exists($this, $check_belongs_to) && $this->$check_belongs_to) {\n")
+	lines.append("\t\t\t\t\t\t\t\t$sth->bindValue(':'.$prop, $val->id, is_int($val->id) ? PDO::PARAM_INT : PDO::PARAM_STR);\n")
+	lines.append("\t\t\t\t\t\t\t}\n")
+	lines.append("\t\t\t\t\t\t} else {\n")
+	lines.append("\t\t\t\t\t\t\tif(!strstr($prop, \"has_many_\") && !strstr($prop, \"_class\") && !strstr($prop, \"belongs_to_\")) {\n")
+	lines.append("\t\t\t\t\t\t\t\t$sth->bindValue(':'.$prop, $val, is_int($val) ? PDO::PARAM_INT : is_null($val) ? PDO::PARAM_NULL : PDO::PARAM_STR);\n")
+	lines.append("\t\t\t\t\t\t\t}\n")
+	lines.append("\t\t\t\t\t\t}\n")
+	lines.append("\t\t\t\t\t}\n")
+	lines.append("\t\t\t\t}\n")
+	lines.append("\t\t\t\t$sth->execute();\n")
+	lines.append("\t\t\t\t$this->id = $db->lastInsertId(static::getTableName());\n")
+	lines.append("\t\t\t}\n")
+	lines.append("\t\t}\n")
+	lines.append("\t}")
+
+	# delete
+	lines.append("\tpublic function delete() {\n")
+	lines.append("\t\tif(property_exists($this, 'id')) {\n")
+	lines.append("\t\t\t$db = new DB();\n")
+	lines.append("\t\t\t$db->preparedStatement(\"DELETE FROM `\".$this->getTableName().\"` WHERE id = ?\", $this->id);\n")
+	lines.append("\t\t}\n")
+	lines.append("\t}\n")
 	lines.append("}\n")
 	lines.append("?>\n")
 	return ''.join(lines)
@@ -512,6 +554,15 @@ def generateFiles():
 
 	if not os.path.exists(path):
 		os.makedirs(path)
+
+	armclass = produceActiveRecordModelClass()
+	try:
+		d = open(path+"/ActiveRecordModel.class.php","w")
+	except:
+		print("Could not open file! (ActiveRecordModel-Class)")
+		return
+	d.write(armclass)
+	d.close()
 
 	for c in classes:
 		phpcode = producePHPCode(c)
