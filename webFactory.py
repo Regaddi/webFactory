@@ -314,7 +314,7 @@ def produceActiveRecordModelClass():
 	lines.append("class ActiveRecordModel {\n")
 
 	# __construct
-	lines.append("\npublic function __construct($vars) {\n")
+	lines.append("\tpublic function __construct($vars) {\n")
 	lines.append("\t\tif(is_array($vars) && count($vars) > 0) {\n")
 	lines.append("\t\t\tforeach($vars as $prop => $val) {\n")
 	lines.append("\t\t\t\t$prop = substr($prop, -3) == \"_id\" ? substr($prop, 0, -3) : $prop;\n")
@@ -340,17 +340,17 @@ def produceActiveRecordModelClass():
 	lines.append("\t\t\t\t}\n")
 	lines.append("\t\t\t}\n")
 	lines.append("\t\t}\n")
-	lines.append("\t}\n")
+	lines.append("\t}\n\n")
 	
 	# find_by_parent
-	lines.append("\n\tpublic static function find_by_parent($obj) {\n")
+	lines.append("\tpublic static function find_by_parent($obj) {\n")
 	lines.append("\t\t$var = 'belongs_to_'.strtolower(get_class($obj)).'_var';\n")
 	lines.append("\t\tif(static::$$var) {\n")
 	lines.append("\t\t\t$bvar = 'belongs_to_'.strtolower(get_class($obj)).'_var';\n")
 	lines.append("\t\t\treturn static::find(static::$$bvar.'_id='.$obj->id);\n")
 	lines.append("\t\t}\n")
 	lines.append("\t\treturn NULL;\n")
-	lines.append("\t}")
+	lines.append("\t}\n\n")
 
 	# singleize
 	lines.append("\tpublic function singleize() {\n")
@@ -359,6 +359,14 @@ def produceActiveRecordModelClass():
 	lines.append("\t\t\t\t$this->$prop = array();\n")
 	lines.append("\t\t\t}\n")
 	lines.append("\t\t}\n");
+	lines.append("\t}\n\n")
+
+	# create
+	lines.append("\tpublic static function create($vars) {\n")
+	lines.append("\t\t$class = get_called_class();\n")
+	lines.append("\t\t$obj = new $class($vars);\n")
+	lines.append("\t\t$obj->save();\n")
+	lines.append("\t\treturn $obj;\n")
 	lines.append("\t}\n\n")
 
 	# save
@@ -431,7 +439,7 @@ def produceActiveRecordModelClass():
 	lines.append("\t\t\t\t$this->id = $db->lastInsertId(static::getTableName());\n")
 	lines.append("\t\t\t}\n")
 	lines.append("\t\t}\n")
-	lines.append("\t}")
+	lines.append("\t}\n\n")
 
 	# delete
 	lines.append("\tpublic function delete() {\n")
@@ -440,6 +448,7 @@ def produceActiveRecordModelClass():
 	lines.append("\t\t\t$db->preparedStatement(\"DELETE FROM `\".$this->getTableName().\"` WHERE id = ?\", $this->id);\n")
 	lines.append("\t\t}\n")
 	lines.append("\t}\n")
+
 	lines.append("}\n")
 	lines.append("?>\n")
 	return ''.join(lines)
