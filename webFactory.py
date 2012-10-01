@@ -340,6 +340,7 @@ def produceActiveRecordModelClass():
 	lines.append("\t\t\t\t}\n")
 	lines.append("\t\t\t}\n")
 	lines.append("\t\t}\n")
+	lines.append("\t\t$this->id = (int)$this->id;\n")
 	lines.append("\t}\n\n")
 	
 	# find_by_parent
@@ -367,6 +368,20 @@ def produceActiveRecordModelClass():
 	lines.append("\t\t$obj = new $class($vars);\n")
 	lines.append("\t\t$obj->save();\n")
 	lines.append("\t\treturn $obj;\n")
+	lines.append("\t}\n\n")
+
+	# update_attributes
+
+	lines.append("\tpublic function update_attributes($vars) {\n")
+	lines.append("\t\tif(is_array($vars) && count($vars) > 0) {\n")
+	lines.append("\t\t\tforeach($vars as $prop => $val) {\n")
+	lines.append("\t\t\t\tif(property_exists($this, $prop)) {\n")
+	lines.append("\t\t\t\t\t$this->$prop = $val;\n")
+	lines.append("\t\t\t\t}\n")
+	lines.append("\t\t\t}\n")
+	lines.append("\t\t\t$this->save();\n")
+	lines.append("\t\t}\n")
+	lines.append("\t\treturn $this;\n")
 	lines.append("\t}\n\n")
 
 	# save
@@ -547,7 +562,7 @@ def produceDBClass():
 	lines.append("\t\t\t$stmt = $this->db->prepare(\"SELECT LAST_INSERT_ID() as id FROM `\".$table.\"`\");\n")
 	lines.append("\t\t\t$stmt->execute();\n")
 	lines.append("\t\t\t$id = $stmt->fetch();\n")
-	lines.append("\t\t\treturn $id['id'];\n")
+	lines.append("\t\t\treturn (int)$id['id'];\n")
 	lines.append("\t\t} catch(PDOException $e) {\n")
 	lines.append("\t\t\tdie($e->getMessage());\n")
 	lines.append("\t\t}\n")
