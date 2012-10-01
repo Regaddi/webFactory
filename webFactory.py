@@ -1,6 +1,10 @@
 #!/bin/python3
 
 import json, os, sys
+from variable import Variable
+from relation import Relation
+from _class import _Class
+from complexhandler import ComplexHandler
 
 version = 1.2
 classes = []
@@ -8,20 +12,19 @@ classes = []
 
 def getVariable():
 	print("variable name:")
-	var = {}
-	var['name'] = input()
-	if var['name'] == "":
-		return
+	name = input()
+	if name == "":
+		return None
 	print("variable datatype: (b)oolean, date(t)ime, (d)ecimal, (i)nt, (s)tring, te(x)t, (o)ther")
 	datatype = input().lower()
 	if len(datatype) > 0:
 		datatype = datatype[0]
 	else:
-		return var
+		return None
 	if datatype == "b":
-		var['datatype'] = "BOOLEAN"
+		return Variable(name, "BOOLEAN")
 	elif datatype == "t":
-		var['datatype'] = "DATETIME"
+		return Variable(name, "DATETIME")
 	elif datatype == "d":
 		try:
 			print("length:")
@@ -30,67 +33,89 @@ def getVariable():
 			decPlaces = int(input())
 		except:
 			print("unexpected input. canceled.")
-			return var
-		var['datatype'] = "DECIMAL("+str(decLength)+","+str(decPlaces)+")"
+			return None
+		return Variable(name, "DECIMAL("+str(decLength)+","+str(decPlaces)+")")
 	elif datatype == "i":
-		var['datatype'] = "INT(11)"
+		return Variable(name, "INT")
 	elif datatype == "s":
 		print("length:")
 		try:
 			strLength = int(input())
 		except:
 			print("unexpected input. canceled.")
-			return var
-		var['datatype'] = "VARCHAR("+str(strLength)+")"
+			return None
+		return Variable(name, "VARCHAR("+str(strLength)+")")
 	elif datatype == "x":
-		var['datatype'] = "TEXT"
-	elif datatype == "o":
-		print("insert datatype manually:")
-		oType = input()
+		return Variable(name, "TEXT")
+	return None
+
+def createRelation():
+	print("choose class")
+	for c in classes:
+		print(c.name+" ["+str(classes.index(c))+"]")
+	try:
+		i = int(input())
+		class1 = classes[i]
+		print("choose relation")
+		print("has many\t[0]")
+		print("belongs to\t[1]")
+
+		r = int(input())
+
+		print("choose related class")
 		for c in classes:
-			if c['name'].lower() == oType.lower():
-				print("do you mean this class? (y/n)")
-				printClass(classes.index(c))
-				ret = input().lower()[0]
-				if ret == "y":
-					var['class'] = c['name']
-					var['datatype'] = oType
-				break
-		print("has many? (y/n)")
-		man = input().lower()[0]
-		if man == "y":
-			var['datatype'] = var['datatype']+"[]"
-			var['hasmany'] = True
-		else:
-			print("belongs to? (y/n)")
-			bel = input().lower()[0]
-			if bel == "y":
-				var['belongsto'] = True
-	else:
-		var = {}
-	return var
+			print(c.name+" ["+str(classes.index(c))+"]")
+		j = int(input())
+
+		rel_str = 'has_many'
+		if r == 1:
+			rel_str = 'belongs_to'
+
+		rel = Relation(classes[i], classes[j], rel_str)
+
+		classes[i].setRelation(rel)
+	except:
+		print("bad input")
+
+def deleteRelation():
+	print("choose relation")
+	i = 0
+	for c in classes:
+		for r in c.relations:
+			print(str(r)+" ["+str(i)+"]")
+			i+=1
+
+	try:
+		chosen = int(input())
+		i = 0
+		for c in classes:
+			j = 0
+			for r in c.relations:
+				if i == chosen:
+					c.removeRelation(r)
+					print("relation deleted")
+				i+=1
+	except:
+		print("bad input")
+
 
 def createClass():
 	print("class name:")
 	name = input()
-	vars = []
+	new_class = _Class(name,[],[])
 	while 1 == 1:
 		var = getVariable()
-		if var != None and 'datatype' in var:
-			vars.append(var)
+		if var != None:
+			new_class.setVariable(var)
 		else:
 			break
 
-	var_id = { 'name': 'id', 'datatype': 'INT(11)'}
-	if var_id not in vars:
-		vars.insert(0, var_id)
-
-	classes.append({ 'name': name, 'vars': vars })
+	classes.append(new_class)
 
 def modifyClass():
 	print("choose class:")
 	for c in classes:
-		print("[",c['name'],"]","("+str(classes.index(c))+")")
+		print("[",c.name,"]","("+str(classes.index(c))+")")
 	i = input()
 	if len(i) > 0:
 		i = int(i)
@@ -98,55 +123,60 @@ def modifyClass():
 		print("no class chosen.")
 		return
 	mod = classes[i]
-	print("class name: (", mod['name'], ")")
+	print("class name: (", mod.name, ")")
 	name = input()
-	if name != mod['name']:
+	if name != mod.name:
 		if name != "":
-			mod['name'] = name
-		vars = mod['vars']
+			mod.name = name
+		vars = mod.variables
 		while 1 == 1:
 			var = getVariable()
 			if var != None:
-				isNew = True
-				for v in vars:
-					if v['name'] == var['name']:
-						if 'datatype' not in var:
-							print(var['name'],"deleted")
-							del vars[vars.index(v)]
-						else:
-							vars[vars.index(v)] = var
-						isNew = False
-						break
-				if isNew:
-					if 'datatype' in var:
-						vars.append(var)
+				mod.setVariable(var)
 			else:
 				break
-		var_id = { 'name': 'id', 'datatype': 'INT(11)'}
-		if var_id not in vars:
-			vars.insert(0, var_id)
+		print("do you wish to delete variables? [y/N]")
+		answer = input()
+		if len(answer) > 0 and answer[0].lower() == "y":
+			sel = "a"
+			while sel[0].lower() != "q":
+				print("select variable to delete")
+				for v in mod.variables:
+					print(str(v)+"\t["+str(mod.variables.index(v))+"]")
+				print("press 'q' to end")
+				sel = input()
+				if len(sel) > 0:
+					try:
+						if int(sel) >= 0 and int(sel) < len(mod.variables):
+							if mod.variables[int(sel)].name == 'id':
+								print("you can't delete id, because this system needs it")
+							else:
+								del mod.variables[int(sel)]
+						else:
+							print(sel+" is not in range")
+					except:
+						if sel[0].lower() != "q":
+							print("bad input")
 		classes[i] = mod
 
 def deleteClass():
 	print("choose class:")
 	for c in classes:
-		print("[",c['name'],"]","("+str(classes.index(c))+")")
-	i = int(input())
-	del classes[i]
+		print("[",c.name,"]","("+str(classes.index(c))+")")
+	try:
+		i = int(input())
+		del classes[i]
+	except:
+		print("bad input")
 
 def printClass(i):
-	c = classes[i]
-	print("\t[",c['name'],"]")
-	for v in c['vars']:
-		print("\t",v['datatype'],"\t",v['name'])
+	print(classes[i])
 
 def printClasses():
 	if len(classes) == 0:
 		print("\tNo classes defined.")
 	for c in classes:
-		print("\t[",c['name'],"]")
-		for v in c['vars']:
-			print("\t",v['datatype'],"\t",v['name'])
+		print(c)
 
 def produceMySQLScheme():
 	global classes
@@ -156,26 +186,23 @@ def produceMySQLScheme():
 	lines.append("USE `"+scheme+"`;\n")
 
 	for c in classes:
-		lines.append("\nCREATE TABLE IF NOT EXISTS `"+c['name'].lower()+"s` (\n")
+		lines.append("\nCREATE TABLE IF NOT EXISTS `"+c.name.lower()+"s` (\n")
 		constraints = []
 		isPrimary = False
 		primary = None
-		for v in c['vars']:
-			if v['name'] == "id":
+		for v in c.variables:
+			if v.name == "id":
 				isPrimary = True
-				primary = v['name']
-			if 'hasmany' not in v and 'belongsto' not in v:
-				lines.append("\t`"+v['name'].lower()+"` "+v['datatype'])
-			else:
-				if 'belongsto' in v and v['belongsto'] == True:
-					lines.append("\t`"+v['name'].lower()+"_id` INT(11)")
-					constraints.append("CONSTRAINT `fk_"+c['name'].lower()+"_"+v['name'].lower()+"` FOREIGN KEY (`"+v['name'].lower()+"_id`) REFERENCES `"+v['datatype'].lower()+"s` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,\n")
-				if 'hasmany' in v and v['hasmany'] == True:
-					continue
+				primary = v.name
+			lines.append("\t`"+v.name.lower()+"` "+v.datatype)
 			if isPrimary == True:
 				lines.append(" AUTO_INCREMENT")
 			lines.append(",\n")
 			isPrimary = False
+		for r in c.relations:
+			if r.relation == 'belongs_to':
+				lines.append("\t`"+r.class_right.name.lower()+"_id` INT,\n")
+				constraints.append("CONSTRAINT `fk_"+c.name.lower()+"_"+r.class_right.name.lower()+"` FOREIGN KEY (`"+r.class_right.name.lower()+"_id`) REFERENCES `"+r.class_right.name.lower()+"s` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,\n")
 		lines.append("\t`created_at` DATETIME NOT NULL,\n")
 		lines.append("\t`updated_at` DATETIME,\n")
 		if primary != None:
@@ -196,56 +223,61 @@ def producePHPCode(c):
 	lines = []
 	lines.append("<?php\n\n/** generated with webFactory "+str(version)+" */\n\n")
 	# begin
-	lines.append("class "+c['name']+" extends ActiveRecordModel {\n")
+	lines.append("class "+c.name+" extends ActiveRecordModel {\n")
 
 	# vars
-	for v in c['vars']:
-		if v['name'] == "id":
+	for v in c.variables:
+		if v.name == "id":
 			lines.append("\tpublic $id = 0;\n")
 		else:
-			lines.append("\tpublic $"+v['name']+";\n")
+			lines.append("\tpublic $"+v.name+";\n")
+	for r in c.relations:
+		if r.relation == 'belongs_to':
+			lines.append("\t// belongs to\n\tpublic $"+r.class_right.name.lower()+";\n")
+		elif r.relation == 'has_many':
+			lines.append("\t// has many\n\tpublic $"+r.class_right.name.lower()+"s;\n")
 
 	# getTableName
 	lines.append("\n\tpublic static function getTableName() {\n")
-	lines.append("\t\treturn '"+c['name'].lower()+"s';\n")
+	lines.append("\t\treturn '"+c.name.lower()+"s';\n")
 	lines.append("\t}\n")
 
-	for v in c['vars']:
-		if 'hasmany' in v and v['hasmany'] == True:
+	for r in c.relations:
+		if r.relation == 'has_many':
 			# has_many_class
-			lines.append("\n\tprotected $has_many_"+v['class'].lower()+"s = TRUE;\n");
+			lines.append("\n\tprotected $has_many_"+r.class_right.name.lower()+"s = TRUE;\n");
 			# has_many_var
-			lines.append("\n\tprotected static $has_many_"+v['class'].lower()+"_var = '"+v['name']+"';\n");
+			lines.append("\n\tprotected static $has_many_"+r.class_right.name.lower()+"s_var = '"+r.class_right.name.lower()+"s';\n");
 			# class_var
-			lines.append("\n\tprotected $"+v['name']+"_class = '"+v['class']+"';\n");
+			lines.append("\n\tprotected $"+r.class_right.name.lower()+"s_class = '"+r.class_right.name+"';\n");
 
 			# get child by index
-			funcName = "get"+v['name'][0].upper()+v['name'][1:-1]+"ByIndex"
+			funcName = "get"+r.class_right.name+"ByIndex"
 			lines.append("\n\tpublic function "+funcName+"($index) {\n")
-			lines.append("\t\treturn $this->"+v['name']+"[$index];\n")
+			lines.append("\t\treturn $this->"+r.class_right.name.lower()+"s[$index];\n")
 			lines.append("\t}\n")
-		if 'belongsto' in v and v['belongsto'] == True:
+		elif r.relation == 'belongs_to':
 			# belongs_to_class
-			lines.append("\n\tprotected $belongs_to_"+v['class'].lower()+" = TRUE;\n");
+			lines.append("\n\tprotected $belongs_to_"+r.class_right.name.lower()+" = TRUE;\n");
 			# belongs_to_var
-			lines.append("\n\tprotected static $belongs_to_"+v['class'].lower()+"_var = '"+v['name']+"';\n");
+			lines.append("\n\tprotected static $belongs_to_"+r.class_right.name.lower()+"_var = '"+r.class_right.name.lower()+"';\n");
 			# class_var
-			lines.append("\n\tprotected $"+v['name']+"_class = '"+v['class']+"';\n");
+			lines.append("\n\tprotected $"+r.class_right.name.lower()+"_class = '"+r.class_right.name+"';\n");
 
 			# get parent
-			funcName = "get"+v['name'][0].upper()+v['name'][1:]
+			funcName = "get"+r.class_right.name
 			lines.append("\n\tpublic function "+funcName+"() {\n")
-			lines.append("\t\treturn "+v['class']+"::find($this->"+v['name']+");\n")
+			lines.append("\t\treturn "+r.class_right.name+"::find($this->"+r.class_right.name.lower()+");\n")
 			lines.append("\t}\n")
 
 			# get by parent or parent id
-			funcName = "find_by_"+v['name'].lower()
-			parent = v['name'].lower()
+			funcName = "find_by_"+r.class_right.name.lower()
+			parent = r.class_right.name.lower()
 			lines.append("\n\tpublic function "+funcName+"($"+parent+") {\n")
 			lines.append("\t\tif(is_int($"+parent+") || is_numeric($"+parent+")) {\n")
-			lines.append("\t\t\treturn "+c['name']+"::find('"+v['name']+"_id='.$"+parent+");\n")
-			lines.append("\t\t} elseif(get_class($"+parent+") == '"+v['class']+"') {\n")
-			lines.append("\t\t\treturn "+c['name']+"::find('"+v['name']+"_id='.$"+parent+"->id);\n")
+			lines.append("\t\t\treturn "+c.name+"::find('"+r.class_right.name.lower()+"_id='.$"+parent+");\n")
+			lines.append("\t\t} elseif(get_class($"+parent+") == '"+r.class_right.name+"') {\n")
+			lines.append("\t\t\treturn "+c.name+"::find('"+r.class_right.name.lower()+"_id='.$"+parent+"->id);\n")
 			lines.append("\t\t}\n")
 			lines.append("\t}\n")
 
@@ -257,7 +289,7 @@ def producePHPCode(c):
 	lines.append("\t\t$db = new DB();\n")
 	lines.append("\t\t$rows = $db->preparedStatement(\"SELECT * FROM `\".self::getTableName().\"`\");\n")
 	lines.append("\t\tforeach($rows as $r) {\n")
-	lines.append("\t\t\tarray_push($result, new "+c['name']+"($r));\n")
+	lines.append("\t\t\tarray_push($result, new "+c.name+"($r));\n")
 	lines.append("\t\t}\n")
 	lines.append("\t\t$db->close();\n")
 	lines.append("\t\treturn $result;\n")
@@ -270,7 +302,7 @@ def producePHPCode(c):
 	lines.append("\t\t\t$r = $db->preparedStatement(\"SELECT * FROM `\".self::getTableName().\"` WHERE id = ?\", $searchTerm);\n")
 	lines.append("\t\t\tif(count($r) == 1) {\n")
 	lines.append("\t\t\t\t$r = $r[0];\n")
-	lines.append("\t\t\t\treturn new "+c['name']+"($r);\n")
+	lines.append("\t\t\t\treturn new "+c.name+"($r);\n")
 	lines.append("\t\t\t} else {\n")
 	lines.append("\t\t\t\treturn NULL;\n")
 	lines.append("\t\t\t}\n")
@@ -298,7 +330,7 @@ def producePHPCode(c):
 	lines.append("\t\t\t$pstmt->execute();\n")
 	lines.append("\t\t\t$result = array();\n")
 	lines.append("\t\t\tforeach($pstmt->fetchAll() as $row) {\n")
-	lines.append("\t\t\t\tarray_push($result, "+c['name']+"::find($row['id']));\n")
+	lines.append("\t\t\t\tarray_push($result, "+c.name+"::find($row['id']));\n")
 	lines.append("\t\t\t}\n")
 	lines.append("\t\t\treturn $result;\n")
 	lines.append("\t\t}\n")
@@ -589,9 +621,9 @@ def generateFiles():
 	for c in classes:
 		phpcode = producePHPCode(c)
 		try:
-			d = open(path+"/"+c['name'].lower()+".class.php","w")
+			d = open(path+"/"+c.name.lower()+".class.php","w")
 		except:
-			print("Could not open file! (Class ",c['name'],")")
+			print("Could not open file! (Class ",c.name,")")
 			return
 		d.write(phpcode)
 		d.close();
@@ -610,7 +642,7 @@ def generateFiles():
 	try:
 		d = open(path+"/scheme.sql","w")
 	except:
-		print("Could not open file! (Class ",c['name'],")")
+		print("Could not open file! (scheme.sql)")
 		return
 	d.write(mysql)
 	d.close()
@@ -635,17 +667,42 @@ def exportClasses():
 	path = input()
 
 	with open(path, mode='w', encoding='utf-8') as f:
-		json.dump(classes, f, indent=4)
+		out = json.dumps(classes, default=ComplexHandler)
+		f.write(out)
 
 def loopInput():
-	print("action: (c)reate class, (m)odify class, (d)elete class, (p)rint, (i)mport, (e)xport, (g)enerate files, (q)uit")
-	char = input().lower()[0]
+	print("action: edit (c)lasses, edit (r)elations, (p)rint, (i)mport, (e)xport, (g)enerate files, (q)uit")
+	char = " "
+	try:
+		char = input().lower()[0]
+	except:
+		print("bad input")
 	if char == "c":
-		createClass()
-	elif char == "m":
-		modifyClass()
-	elif char == "d":
-		deleteClass()
+		print("(c)reate, (m)odify, (d)elete, (b)ack")
+		try:
+			char2 = input().lower()[0]
+			if char2 == "c":
+				createClass()
+			elif char2 == "m":
+				modifyClass()
+			elif char2 == "d":
+				deleteClass()
+			else:
+				print("")
+		except:
+			print("bad input")
+	elif char == "r":
+		print("(c)reate, (d)elete, (b)ack")
+		try:
+			char2 = input().lower()[0]
+			if char2 == "c":
+				createRelation()
+			elif char2 == "d":
+				deleteRelation()
+			else:
+				print("")
+		except:
+			print("bad input")
 	elif char == "p":
 		printClasses()
 	elif char == "i":
@@ -656,6 +713,8 @@ def loopInput():
 		generateFiles()
 	elif char == "q":
 		sys.exit(0)
+	else:
+		print("")
 	loopInput()
 
 print("webFactory",str(version))
