@@ -607,8 +607,10 @@ def generateFiles():
 	path = input()
 
 	if not os.path.exists(path):
+		print("\tcreating",path)
 		os.makedirs(path)
 
+	print("\tgenerating",path+"/ActiveRecordModel.class.php")
 	armclass = produceActiveRecordModelClass()
 	try:
 		d = open(path+"/ActiveRecordModel.class.php","w")
@@ -619,6 +621,7 @@ def generateFiles():
 	d.close()
 
 	for c in classes:
+		print("\tgenerating",path+"/"+c.name.lower()+".class.php")
 		phpcode = producePHPCode(c)
 		try:
 			d = open(path+"/"+c.name.lower()+".class.php","w")
@@ -628,6 +631,7 @@ def generateFiles():
 		d.write(phpcode)
 		d.close();
 
+	print("\tgenerating",path+"/db.class.php")
 	dbclass = produceDBClass()
 	try:
 		d = open(path+"/db.class.php","w")
@@ -637,8 +641,8 @@ def generateFiles():
 	d.write(dbclass)
 	d.close()
 
-
 	mysql = produceMySQLScheme()
+	print("\tgenerating",path+"/scheme.sql")
 	try:
 		d = open(path+"/scheme.sql","w")
 	except:
@@ -646,6 +650,12 @@ def generateFiles():
 		return
 	d.write(mysql)
 	d.close()
+
+	print("")
+	print("****************")
+	print("*** FINISHED ***")
+	print("****************")
+	print("")
 
 
 def importClasses():
