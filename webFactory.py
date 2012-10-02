@@ -673,7 +673,7 @@ def importClasses():
 
 def exportClasses():
 	print("path to file:")
-	path = input()
+	path = input()+".wfx"
 
 	with open(path, mode='w', encoding='utf-8') as f:
 		out = json.dumps(classes, default=ComplexHandler)
