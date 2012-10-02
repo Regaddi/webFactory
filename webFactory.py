@@ -71,7 +71,7 @@ def createRelation():
 		if r == 1:
 			rel_str = 'belongs_to'
 
-		rel = Relation(classes[i], classes[j], rel_str)
+		rel = Relation(classes[j].name, rel_str)
 
 		classes[i].setRelation(rel)
 	except:
@@ -201,8 +201,8 @@ def produceMySQLScheme():
 			isPrimary = False
 		for r in c.relations:
 			if r.relation == 'belongs_to':
-				lines.append("\t`"+r.class_right.name.lower()+"_id` INT,\n")
-				constraints.append("CONSTRAINT `fk_"+c.name.lower()+"_"+r.class_right.name.lower()+"` FOREIGN KEY (`"+r.class_right.name.lower()+"_id`) REFERENCES `"+r.class_right.name.lower()+"s` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,\n")
+				lines.append("\t`"+r.class_right.lower()+"_id` INT,\n")
+				constraints.append("CONSTRAINT `fk_"+c.name.lower()+"_"+r.class_right.lower()+"` FOREIGN KEY (`"+r.class_right.lower()+"_id`) REFERENCES `"+r.class_right.lower()+"s` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,\n")
 		lines.append("\t`created_at` DATETIME NOT NULL,\n")
 		lines.append("\t`updated_at` DATETIME,\n")
 		if primary != None:
@@ -233,9 +233,9 @@ def producePHPCode(c):
 			lines.append("\tpublic $"+v.name+";\n")
 	for r in c.relations:
 		if r.relation == 'belongs_to':
-			lines.append("\t// belongs to\n\tpublic $"+r.class_right.name.lower()+";\n")
+			lines.append("\t// belongs to\n\tpublic $"+r.class_right.lower()+";\n")
 		elif r.relation == 'has_many':
-			lines.append("\t// has many\n\tpublic $"+r.class_right.name.lower()+"s;\n")
+			lines.append("\t// has many\n\tpublic $"+r.class_right.lower()+"s;\n")
 
 	# getTableName
 	lines.append("\n\tpublic static function getTableName() {\n")
@@ -245,39 +245,39 @@ def producePHPCode(c):
 	for r in c.relations:
 		if r.relation == 'has_many':
 			# has_many_class
-			lines.append("\n\tprotected $has_many_"+r.class_right.name.lower()+"s = TRUE;\n");
+			lines.append("\n\tprotected $has_many_"+r.class_right.lower()+"s = TRUE;\n");
 			# has_many_var
-			lines.append("\n\tprotected static $has_many_"+r.class_right.name.lower()+"s_var = '"+r.class_right.name.lower()+"s';\n");
+			lines.append("\n\tprotected static $has_many_"+r.class_right.lower()+"s_var = '"+r.class_right.lower()+"s';\n");
 			# class_var
-			lines.append("\n\tprotected $"+r.class_right.name.lower()+"s_class = '"+r.class_right.name+"';\n");
+			lines.append("\n\tprotected $"+r.class_right.lower()+"s_class = '"+r.class_right+"';\n");
 
 			# get child by index
-			funcName = "get"+r.class_right.name+"ByIndex"
+			funcName = "get"+r.class_right+"ByIndex"
 			lines.append("\n\tpublic function "+funcName+"($index) {\n")
-			lines.append("\t\treturn $this->"+r.class_right.name.lower()+"s[$index];\n")
+			lines.append("\t\treturn $this->"+r.class_right.lower()+"s[$index];\n")
 			lines.append("\t}\n")
 		elif r.relation == 'belongs_to':
 			# belongs_to_class
-			lines.append("\n\tprotected $belongs_to_"+r.class_right.name.lower()+" = TRUE;\n");
+			lines.append("\n\tprotected $belongs_to_"+r.class_right.lower()+" = TRUE;\n");
 			# belongs_to_var
-			lines.append("\n\tprotected static $belongs_to_"+r.class_right.name.lower()+"_var = '"+r.class_right.name.lower()+"';\n");
+			lines.append("\n\tprotected static $belongs_to_"+r.class_right.lower()+"_var = '"+r.class_right.lower()+"';\n");
 			# class_var
-			lines.append("\n\tprotected $"+r.class_right.name.lower()+"_class = '"+r.class_right.name+"';\n");
+			lines.append("\n\tprotected $"+r.class_right.lower()+"_class = '"+r.class_right+"';\n");
 
 			# get parent
-			funcName = "get"+r.class_right.name
+			funcName = "get"+r.class_right
 			lines.append("\n\tpublic function "+funcName+"() {\n")
-			lines.append("\t\treturn "+r.class_right.name+"::find($this->"+r.class_right.name.lower()+");\n")
+			lines.append("\t\treturn "+r.class_right+"::find($this->"+r.class_right.lower()+");\n")
 			lines.append("\t}\n")
 
 			# get by parent or parent id
-			funcName = "find_by_"+r.class_right.name.lower()
-			parent = r.class_right.name.lower()
+			funcName = "find_by_"+r.class_right.lower()
+			parent = r.class_right.lower()
 			lines.append("\n\tpublic function "+funcName+"($"+parent+") {\n")
 			lines.append("\t\tif(is_int($"+parent+") || is_numeric($"+parent+")) {\n")
-			lines.append("\t\t\treturn "+c.name+"::find('"+r.class_right.name.lower()+"_id='.$"+parent+");\n")
-			lines.append("\t\t} elseif(get_class($"+parent+") == '"+r.class_right.name+"') {\n")
-			lines.append("\t\t\treturn "+c.name+"::find('"+r.class_right.name.lower()+"_id='.$"+parent+"->id);\n")
+			lines.append("\t\t\treturn "+c.name+"::find('"+r.class_right.lower()+"_id='.$"+parent+");\n")
+			lines.append("\t\t} elseif(get_class($"+parent+") == '"+r.class_right+"') {\n")
+			lines.append("\t\t\treturn "+c.name+"::find('"+r.class_right.lower()+"_id='.$"+parent+"->id);\n")
 			lines.append("\t\t}\n")
 			lines.append("\t}\n")
 
@@ -657,8 +657,17 @@ def importClasses():
 	except:
 		print("Could not open file '"+path+"'")
 		return
-	classes = json.load(f)
+	cache = json.load(f)
 	f.close()
+	classes = []
+	for c in cache:
+		variables = []
+		relations = []
+		for v in c['variables']:
+			variables.append(Variable(v['name'], v['datatype']))
+		for r in c['relations']:
+			relations.append(Relation(r['class_right'], r['relation']))
+		classes.append(_Class(c['name'], variables, relations))
 	print("Imported:")
 	printClasses()
 

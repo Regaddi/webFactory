@@ -34,7 +34,7 @@ class _Class:
 	def setRelation(self, relation):
 		found = False
 		for r in self.relations:
-			if r.class_left.name == self.name and r.class_right.name == relation.class_right.name:
+			if r.class_right == relation.class_right:
 				self.relations[self.relations.index(r)] = relation
 				found = True
 				break
@@ -43,14 +43,14 @@ class _Class:
 
 	def removeRelation(self, rel):
 		for r in self.relations:
-			if r.class_left.name == rel.class_left.name and r.class_right.name == rel.class_right.name:
+			if r.class_right == rel.class_right:
 				del self.relations[self.relations.index(r)]
 				break
 
 	def __repr__(self):
 		echo = ["\t[ "+self.name+" ]"]
 		for r in self.relations:
-			other = r.class_right.name
+			other = r.class_right
 			if r.relation == 'has_many':
 				other += "s"
 			echo.append("\t"+r.relation+" "+other)
