@@ -10,6 +10,7 @@ features:
   - export your classes to json and import them again later
   - fast prototyping of models through short keycodes
 
+The generated PHP requires at least PHP 5.3.0 to properly run.
 
 LICENSE
 =======

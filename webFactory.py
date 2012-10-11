@@ -5,8 +5,8 @@ from variable import Variable
 from relation import Relation
 from _class import _Class
 from complexhandler import ComplexHandler
+from _vars import version
 
-version = 1.2
 classes = []
 
 
@@ -363,6 +363,21 @@ def produceActiveRecordModelClass():
 	lines.append("\t\t\t\t$sth->execute();")
 	lines.append("\t\t\t\t$this->id = $db->lastInsertId(static::getTableName());")
 	lines.append("\t\t\t}")
+
+	lines.append("\t\t\tforeach(get_object_vars($this) as $prop => $val) {")
+	lines.append("\t\t\t\tif(property_exists($this, $prop.'_class')) {")
+	lines.append("\t\t\t\t\t$prop_class = $prop.'_class';")
+	lines.append("\t\t\t\t\t$check_has_many = 'has_many_'.strtolower($this->$prop_class).'s';")
+	lines.append("\t\t\t\t\tif(property_exists($this, $check_has_many) && $this->$check_has_many) {")
+	lines.append("\t\t\t\t\t\tforeach($val as $child) {")
+	lines.append("\t\t\t\t\t\t\t$parent_prop = strtolower(get_called_class());")
+	lines.append("\t\t\t\t\t\t\t$child->$parent_prop = $this->id;")
+	lines.append("\t\t\t\t\t\t\t$child->save();")
+	lines.append("\t\t\t\t\t\t}")
+	lines.append("\t\t\t\t\t}")
+	lines.append("\t\t\t\t}")
+	lines.append("\t\t\t}")
+
 	lines.append("\t\t}")
 	lines.append("\t}\n")
 

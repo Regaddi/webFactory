@@ -1,5 +1,6 @@
 from variable import Variable
 from relation import Relation
+from _vars import version
 
 class _Class:
 	def __init__(self, name, variables=[],relations=[]):
